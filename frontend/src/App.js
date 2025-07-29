@@ -3,13 +3,30 @@ import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import axios from "axios";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+// Import Cart Components
+import { CartProvider, useCart } from "./context/CartContext";
+import CartModal from "./components/CartModal";
+
+// Import Admin Components
+import AdminLayout from "./components/Admin/AdminLayout";
+import AdminLogin from "./components/Admin/AdminLogin";
+import Dashboard from "./components/Admin/Dashboard";
+import ProductManagement from "./components/Admin/ProductManagement";
+import UserManagement from "./components/Admin/UserManagement";
+import OrderManagement from "./components/Admin/OrderManagement";
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 const API = `${BACKEND_URL}/api`;
 
+// Debug logging
+console.log('BACKEND_URL:', BACKEND_URL);
+console.log('API:', API);
+
 // Header Component
-const Header = ({ cartCount, onCategorySelect, onSearchChange }) => {
+const Header = ({ onCategorySelect, onSearchChange, onCartOpen }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const { getCartCount } = useCart();
 
   const categories = {
     dresses: ["cotton", "rayon", "organza", "georgette", "satin"],
@@ -36,8 +53,17 @@ const Header = ({ cartCount, onCategorySelect, onSearchChange }) => {
           </button>
 
           {/* Logo */}
-          <div className="flex items-center">
-            <h1 className="text-2xl font-bold text-gray-900">MONVI</h1>
+          <div className="flex items-center cursor-pointer" onClick={() => onCategorySelect(null)}>
+            <img 
+              src="/images/logos/Monvi_Styles_Brand_Identity_Design-removebg-preview (1).png" 
+              alt="Monvi Styles" 
+              className="h-12 w-auto"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'block';
+              }}
+            />
+            <h1 className="text-2xl font-bold text-gray-900 ml-2" style={{ display: 'none' }}>MONVI</h1>
           </div>
 
           {/* Desktop Navigation */}
@@ -111,13 +137,16 @@ const Header = ({ cartCount, onCategorySelect, onSearchChange }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             </button>
-            <button className="text-gray-700 hover:text-gray-900 relative">
+            <button 
+              onClick={onCartOpen}
+              className="text-gray-700 hover:text-gray-900 relative"
+            >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
-              {cartCount > 0 && (
+              {getCartCount() > 0 && (
                 <span className="absolute -top-2 -right-2 bg-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  {cartCount}
+                  {getCartCount()}
                 </span>
               )}
             </button>
@@ -213,6 +242,14 @@ const HeroSection = ({ featuredProducts }) => {
     <div className="relative h-96 md:h-[500px] bg-gradient-to-r from-pink-50 to-purple-50 overflow-hidden">
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="text-center z-10">
+          {/* <img 
+            src="/images/logos/Monvi_Styles_Brand_Identity_Design-removebg-preview (1).png" 
+            alt="Monvi Styles" 
+            className="h-24 md:h-32 w-auto mx-auto mb-6"
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          /> */}
           <h2 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
             Discover MONVI
           </h2>
@@ -251,20 +288,27 @@ const HeroSection = ({ featuredProducts }) => {
 };
 
 // Product Card Component
-const ProductCard = ({ product, onAddToCart }) => {
+const ProductCard = ({ product }) => {
   const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
+  const { addToCart } = useCart();
 
-  const handleAddToCart = () => {
-    onAddToCart(product.id, selectedSize);
+  const handleAddToCart = (e) => {
+    e.stopPropagation(); // Prevent product detail from opening
+    addToCart(product, selectedSize, 1);
+    // Show success message
+    alert(`${product.name} added to cart!`);
   };
 
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
       <div className="relative">
         <img 
-          src={product.images[0]} 
+          src={product.images && product.images[0] ? product.images[0] : '/images/placeholder.jpg'} 
           alt={product.name} 
           className="w-full h-64 object-cover"
+          onError={(e) => {
+            e.target.src = '/images/placeholder.jpg';
+          }}
         />
         <button className="absolute top-4 right-4 text-gray-400 hover:text-pink-600">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -317,12 +361,15 @@ const ProductCard = ({ product, onAddToCart }) => {
 };
 
 // Product Detail Component
-const ProductDetail = ({ product, onAddToCart, onBack }) => {
+const ProductDetail = ({ product, onBack }) => {
   const [currentImage, setCurrentImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
+  const { addToCart } = useCart();
 
   const handleAddToCart = () => {
-    onAddToCart(product.id, selectedSize);
+    addToCart(product, selectedSize, 1);
+    // Show success message
+    alert(`${product.name} added to cart!`);
   };
 
   return (
@@ -451,12 +498,13 @@ const ProductDetail = ({ product, onAddToCart, onBack }) => {
   );
 };
 
+
+
 // Main App Component
-const App = () => {
+const App = ({ onCartOpen }) => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [cartCount, setCartCount] = useState(0);
   const [currentView, setCurrentView] = useState('home'); // 'home', 'products', 'detail'
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState(null);
@@ -469,19 +517,22 @@ const App = () => {
 
   const initializeApp = async () => {
     try {
-      // Initialize sample data
-      await axios.post(`${API}/initialize-data`);
-      
-      // Load products
+      // Load products directly (skip initialize-data for now)
       const response = await axios.get(`${API}/products`);
-      setProducts(response.data);
-      setFilteredProducts(response.data);
+      // Backend returns { success, data, count, pagination }
+      const productsData = response.data.data || response.data;
+      console.log('Products loaded:', productsData);
+      setProducts(productsData);
+      setFilteredProducts(productsData);
       
-      // Load cart
-      const cartResponse = await axios.get(`${API}/cart`);
-      setCartCount(cartResponse.data.length);
+      // Cart is now handled by CartContext
     } catch (error) {
       console.error('Error initializing app:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
     } finally {
       setLoading(false);
     }
@@ -532,22 +583,7 @@ const App = () => {
     setCurrentView('detail');
   };
 
-  const handleAddToCart = async (productId, size) => {
-    try {
-      await axios.post(`${API}/cart`, {
-        product_id: productId,
-        quantity: 1,
-        size: size
-      });
-      
-      const cartResponse = await axios.get(`${API}/cart`);
-      setCartCount(cartResponse.data.length);
-      
-      alert('Added to cart!');
-    } catch (error) {
-      console.error('Error adding to cart:', error);
-    }
-  };
+
 
   const handleBackToProducts = () => {
     setCurrentView('products');
@@ -566,71 +602,112 @@ const App = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header 
-        cartCount={cartCount}
-        onCategorySelect={handleCategorySelect}
-        onSearchChange={handleSearchChange}
-      />
-      
-      {currentView === 'home' && (
-        <div>
-          <HeroSection featuredProducts={products.slice(0, 4)} />
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-8">Featured Products</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {products.slice(0, 8).map(product => (
-                <div key={product.id} onClick={() => handleProductClick(product)} className="cursor-pointer">
-                  <ProductCard product={product} onAddToCart={handleAddToCart} />
+    <BrowserRouter>
+      <Routes>
+        {/* Admin Routes */}
+        <Route path="/admin-login" element={<AdminLogin />} />
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="products" element={<ProductManagement />} />
+          <Route path="users" element={<UserManagement />} />
+          <Route path="orders" element={<OrderManagement />} />
+        </Route>
+
+        {/* Main App Routes */}
+        <Route path="/" element={
+          <div className="min-h-screen bg-gray-50">
+            <Header 
+              onCategorySelect={handleCategorySelect}
+              onSearchChange={handleSearchChange}
+              onCartOpen={onCartOpen}
+            />
+            
+            {currentView === 'home' && (
+              <div>
+                <HeroSection featuredProducts={products.slice(0, 4)} />
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                  <h2 className="text-3xl font-bold text-gray-900 mb-8">Featured Products</h2>
+                  {products.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-600">No products found. Please check the console for errors.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                          {products.slice(0, 8).map(product => (
+                      <div key={product._id || product.id} onClick={() => handleProductClick(product)} className="cursor-pointer">
+                        <ProductCard product={product} />
+                      </div>
+                    ))}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {currentView === 'products' && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
-              {selectedCategory ? 
-                `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} ${selectedSubcategory ? `- ${selectedSubcategory.charAt(0).toUpperCase() + selectedSubcategory.slice(1)}` : ''}` : 
-                'All Products'
-              } ({filteredProducts.length} items)
-            </h2>
-            <div className="flex items-center space-x-4">
-              <select className="border border-gray-300 rounded-lg px-4 py-2">
-                <option>Sort by</option>
-                <option>Price: Low to High</option>
-                <option>Price: High to Low</option>
-                <option>Newest</option>
-                <option>Popular</option>
-              </select>
-              <button className="border border-gray-300 rounded-lg px-4 py-2">
-                Filter
-              </button>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredProducts.map(product => (
-              <div key={product.id} onClick={() => handleProductClick(product)} className="cursor-pointer">
-                <ProductCard product={product} onAddToCart={handleAddToCart} />
               </div>
-            ))}
+            )}
+            
+            {currentView === 'products' && (
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {selectedCategory ? 
+                      `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} ${selectedSubcategory ? `- ${selectedSubcategory.charAt(0).toUpperCase() + selectedSubcategory.slice(1)}` : ''}` : 
+                      'All Products'
+                    } ({filteredProducts.length} items)
+                  </h2>
+                  <div className="flex items-center space-x-4">
+                    <select className="border border-gray-300 rounded-lg px-4 py-2">
+                      <option>Sort by</option>
+                      <option>Price: Low to High</option>
+                      <option>Price: High to Low</option>
+                      <option>Newest</option>
+                      <option>Popular</option>
+                    </select>
+                    <button className="border border-gray-300 rounded-lg px-4 py-2">
+                      Filter
+                    </button>
+                  </div>
+                </div>
+                
+                {filteredProducts.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-600">No products found in this category.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {filteredProducts.map(product => (
+                      <div key={product._id || product.id} onClick={() => handleProductClick(product)} className="cursor-pointer">
+                        <ProductCard product={product} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {currentView === 'detail' && selectedProduct && (
+              <ProductDetail 
+                product={selectedProduct} 
+                onBack={handleBackToProducts}
+              />
+            )}
           </div>
-        </div>
-      )}
-      
-      {currentView === 'detail' && selectedProduct && (
-        <ProductDetail 
-          product={selectedProduct} 
-          onAddToCart={handleAddToCart}
-          onBack={handleBackToProducts}
-        />
-      )}
-    </div>
+        } />
+      </Routes>
+    </BrowserRouter>
   );
 };
 
-export default App;
+// Wrapper component to handle cart modal
+const AppWithCart = () => {
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  return (
+    <CartProvider>
+      <div>
+        <App onCartOpen={() => setIsCartOpen(true)} />
+        <CartModal isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      </div>
+    </CartProvider>
+  );
+};
+
+export default AppWithCart;

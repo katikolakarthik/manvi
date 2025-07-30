@@ -26,17 +26,12 @@ connectDB();
 
 // Security middleware
 app.use(helmet());
-
-// CORS configuration
-const corsOptions = {
+app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://monvi-frontend.onrender.com', 'http://localhost:3000']
-    : 'http://localhost:3000',
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-
-app.use(cors(corsOptions));
+    ? ['https://yourdomain.com'] 
+    : ['http://localhost:3000'],
+  credentials: true
+}));
 
 // Rate limiting
 const limiter = rateLimit({

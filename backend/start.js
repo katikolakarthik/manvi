@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+require('dotenv').config();
 const app = require('./server');
 const logger = require('./config/logger');
 
@@ -10,4 +11,5 @@ app.listen(PORT, () => {
   logger.info(`📊 Environment: ${process.env.NODE_ENV}`);
   logger.info(`🔗 Health check: http://localhost:${PORT}/health`);
   logger.info(`📚 API Documentation: Check README.md for endpoints`);
+  logger.info(`🔐 JWT Secret loaded: ${process.env.JWT_SECRET ? 'Yes' : 'No'}`);
 }); 

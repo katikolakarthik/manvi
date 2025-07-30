@@ -18,9 +18,7 @@ import OrderManagement from "./components/Admin/OrderManagement";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 const API = `${BACKEND_URL}/api`;
 
-// Debug logging
-console.log('BACKEND_URL:', BACKEND_URL);
-console.log('API:', API);
+
 
 // Header Component
 const Header = ({ onCategorySelect, onSearchChange, onCartOpen }) => {
@@ -242,14 +240,14 @@ const HeroSection = ({ featuredProducts }) => {
     <div className="relative h-96 md:h-[500px] bg-gradient-to-r from-pink-50 to-purple-50 overflow-hidden">
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="text-center z-10">
-          {/* <img 
+          <img 
             src="/images/logos/Monvi_Styles_Brand_Identity_Design-removebg-preview (1).png" 
             alt="Monvi Styles" 
             className="h-24 md:h-32 w-auto mx-auto mb-6"
             onError={(e) => {
               e.target.style.display = 'none';
             }}
-          /> */}
+          />
           <h2 className="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
             Discover MONVI
           </h2>

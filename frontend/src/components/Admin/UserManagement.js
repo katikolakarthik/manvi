@@ -16,6 +16,10 @@ const UserManagement = () => {
   const [selectedRole, setSelectedRole] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -80,17 +84,77 @@ const UserManagement = () => {
   };
 
   const handleDelete = async (userId) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      try {
-        const token = localStorage.getItem('token');
-        await axios.delete(`http://localhost:5000/api/auth/users/${userId}`, {
+    setUserToDelete(userId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    
+    setDeleteLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:5000/api/auth/users/${userToDelete}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      await fetchUsers();
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+      alert('User deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error deleting user. Please try again.';
+      alert(`Error deleting user: ${errorMessage}`);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedUsers.length === 0) {
+      alert('Please select users to delete.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete ${selectedUsers.length} selected users?`)) {
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const deletePromises = selectedUsers.map(userId =>
+        axios.delete(`http://localhost:5000/api/auth/users/${userId}`, {
           headers: { Authorization: `Bearer ${token}` }
-        });
-        fetchUsers();
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        alert('Error deleting user. Please try again.');
-      }
+        })
+      );
+      
+      await Promise.all(deletePromises);
+      await fetchUsers();
+      setSelectedUsers([]);
+      alert(`${selectedUsers.length} users deleted successfully!`);
+    } catch (error) {
+      console.error('Error deleting users:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error deleting users. Please try again.';
+      alert(`Error deleting users: ${errorMessage}`);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleSelectUser = (userId) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedUsers.length === filteredUsers.length) {
+      setSelectedUsers([]);
+    } else {
+      setSelectedUsers(filteredUsers.map(user => user._id));
     }
   };
 
@@ -181,12 +245,49 @@ const UserManagement = () => {
         </div>
       </div>
 
+      {/* Bulk Actions */}
+      {selectedUsers.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <span className="text-sm font-medium text-blue-900">
+                {selectedUsers.length} user(s) selected
+              </span>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={handleBulkDelete}
+                disabled={deleteLoading}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                <FaTrash size={14} />
+                <span>Delete Selected</span>
+              </button>
+              <button
+                onClick={() => setSelectedUsers([])}
+                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+              >
+                Clear Selection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Users Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <input
+                    type="checkbox"
+                    checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
+                    onChange={handleSelectAll}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   User
                 </th>
@@ -210,6 +311,14 @@ const UserManagement = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredUsers.map((user) => (
                 <tr key={user._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.includes(user._id)}
+                      onChange={() => handleSelectUser(user._id)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="h-10 w-10 flex-shrink-0">
@@ -357,6 +466,60 @@ const UserManagement = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0">
+                <FaTrash className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-medium text-gray-900">Delete User</h3>
+                <p className="text-sm text-gray-500">This action cannot be undone.</p>
+              </div>
+            </div>
+            
+            <div className="mt-4">
+              <p className="text-sm text-gray-700">
+                Are you sure you want to delete this user? This action will permanently remove the user from your system.
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setUserToDelete(null);
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={deleteLoading}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                {deleteLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaTrash size={14} />
+                    <span>Delete User</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -11,11 +11,17 @@ import axios from 'axios';
 
 const ProductManagement = () => {
   const [products, setProducts] = useState([]);
+  const [subcategories, setSubcategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [subcategoriesLoading, setSubcategoriesLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [productToDelete, setProductToDelete] = useState(null);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -56,9 +62,7 @@ const ProductManagement = () => {
     'clothing'
   ];
 
-  const subcategories = {
-    clothing: ['dresses', 'sarees', 'kurtis', 'lehengas', 'suits']
-  };
+  // Dynamic subcategories will be loaded from API
 
   const materials = ['Cotton', 'Silk', 'Georgette', 'Rayon', 'Organza', 'Banarasi Silk'];
   const patterns = ['Solid', 'Printed', 'Embroidered', 'Zari Work', 'Traditional Motifs'];
@@ -73,6 +77,31 @@ const ProductManagement = () => {
 
   useEffect(() => {
     fetchProducts();
+    fetchSubcategories();
+  }, []);
+
+  // Add event listener for subcategory updates
+  useEffect(() => {
+    const handleSubcategoryUpdate = (event) => {
+      console.log('Subcategory update detected:', event.detail);
+      console.log('Refreshing subcategories...');
+      fetchSubcategories();
+      
+      // Show a brief notification
+      const action = event.detail?.action || 'updated';
+      const message = `Subcategories ${action}. Refreshing dropdown...`;
+      console.log(message);
+      
+      // You can add a toast notification here if you have a notification system
+      // For now, we'll just log to console
+    };
+
+    // Listen for custom events from subcategory management
+    window.addEventListener('subcategory-updated', handleSubcategoryUpdate);
+    
+    return () => {
+      window.removeEventListener('subcategory-updated', handleSubcategoryUpdate);
+    };
   }, []);
 
   const fetchProducts = async () => {
@@ -83,6 +112,29 @@ const ProductManagement = () => {
       console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSubcategories = async () => {
+    try {
+      setSubcategoriesLoading(true);
+      console.log('Fetching subcategories...');
+      const response = await axios.get('http://localhost:5000/api/subcategories?isActive=true');
+      console.log('Subcategories response:', response.data);
+      setSubcategories(response.data.data || []);
+      console.log(`Successfully loaded ${response.data.data?.length || 0} subcategories`);
+    } catch (error) {
+      console.error('Error fetching subcategories:', error);
+      // Try to fetch without the isActive filter as fallback
+      try {
+        const fallbackResponse = await axios.get('http://localhost:5000/api/subcategories');
+        console.log('Fallback subcategories response:', fallbackResponse.data);
+        setSubcategories(fallbackResponse.data.data || []);
+      } catch (fallbackError) {
+        console.error('Error in fallback subcategories fetch:', fallbackError);
+      }
+    } finally {
+      setSubcategoriesLoading(false);
     }
   };
 
@@ -104,6 +156,12 @@ const ProductManagement = () => {
         sizes: formData.sizes.filter(size => size.trim() !== ''),
         size_guide: formData.size_guide.filter(guide => guide.size && guide.bust && guide.waist)
       };
+
+      console.log('Submitting product data:', {
+        ...submitData,
+        images: submitData.images,
+        imageCount: submitData.images.length
+      });
 
       if (editingProduct) {
         await axios.put(`http://localhost:5000/api/products/${editingProduct._id}`, submitData, config);
@@ -161,18 +219,78 @@ const ProductManagement = () => {
   };
 
   const handleDelete = async (productId) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
-      try {
-        const token = localStorage.getItem('token');
-        await axios.delete(`http://localhost:5000/api/products/${productId}`, {
+    setProductToDelete(productId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!productToDelete) return;
+    
+    setDeleteLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:5000/api/products/${productToDelete}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      await fetchProducts();
+      setShowDeleteModal(false);
+      setProductToDelete(null);
+      // Show success message
+      alert('Product deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error deleting product. Please try again.';
+      alert(`Error deleting product: ${errorMessage}`);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedProducts.length === 0) {
+      alert('Please select products to delete.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete ${selectedProducts.length} selected products?`)) {
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const deletePromises = selectedProducts.map(productId =>
+        axios.delete(`http://localhost:5000/api/products/${productId}`, {
           headers: { Authorization: `Bearer ${token}` }
-        });
-        fetchProducts();
-        alert('Product deleted successfully!');
-      } catch (error) {
-        console.error('Error deleting product:', error);
-        alert('Error deleting product. Please try again.');
-      }
+        })
+      );
+      
+      await Promise.all(deletePromises);
+      await fetchProducts();
+      setSelectedProducts([]);
+      alert(`${selectedProducts.length} products deleted successfully!`);
+    } catch (error) {
+      console.error('Error deleting products:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error deleting products. Please try again.';
+      alert(`Error deleting products: ${errorMessage}`);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleSelectProduct = (productId) => {
+    setSelectedProducts(prev => 
+      prev.includes(productId) 
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedProducts.length === filteredProducts.length) {
+      setSelectedProducts([]);
+    } else {
+      setSelectedProducts(filteredProducts.map(product => product._id));
     }
   };
 
@@ -277,14 +395,23 @@ const ProductManagement = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Product Management</h1>
           <p className="text-gray-600">Manage your product catalog</p>
+          <p className="text-sm text-gray-500">Subcategories loaded: {subcategories.length}</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-        >
-          <FaPlus className="mr-2" size={16} />
-          Add Product
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={fetchSubcategories}
+            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 flex items-center"
+          >
+            Refresh Subcategories
+          </button>
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+          >
+            <FaPlus className="mr-2" size={16} />
+            Add Product
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -332,12 +459,49 @@ const ProductManagement = () => {
         </div>
       </div>
 
+      {/* Bulk Actions */}
+      {selectedProducts.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <span className="text-sm font-medium text-blue-900">
+                {selectedProducts.length} product(s) selected
+              </span>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={handleBulkDelete}
+                disabled={deleteLoading}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                <FaTrash size={14} />
+                <span>Delete Selected</span>
+              </button>
+              <button
+                onClick={() => setSelectedProducts([])}
+                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+              >
+                Clear Selection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Products Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <input
+                    type="checkbox"
+                    checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
+                    onChange={handleSelectAll}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Product
                 </th>
@@ -361,6 +525,14 @@ const ProductManagement = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredProducts.map((product) => (
                 <tr key={product._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedProducts.includes(product._id)}
+                      onChange={() => handleSelectProduct(product._id)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="h-10 w-10 flex-shrink-0">
@@ -481,18 +653,60 @@ const ProductManagement = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Subcategory
+                      <button
+                        type="button"
+                        onClick={fetchSubcategories}
+                        disabled={subcategoriesLoading}
+                        className={`ml-2 text-xs underline ${
+                          subcategoriesLoading 
+                            ? 'text-gray-400 cursor-not-allowed' 
+                            : 'text-blue-600 hover:text-blue-800'
+                        }`}
+                        title="Refresh subcategories"
+                      >
+                        {subcategoriesLoading ? '(Refreshing...)' : '(Refresh)'}
+                      </button>
                     </label>
                     <select
                       value={formData.subcategory}
                       onChange={(e) => setFormData({...formData, subcategory: e.target.value})}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="">Select Subcategory</option>
-                      {subcategories[formData.category]?.map(sub => (
-                        <option key={sub} value={sub}>
-                          {sub.charAt(0).toUpperCase() + sub.slice(1)}
-                        </option>
-                      ))}
+                      <option value="">
+                        {subcategoriesLoading ? 'Loading subcategories...' : 'Select Subcategory'}
+                      </option>
+                      {(() => {
+                        const filteredSubcategories = subcategories
+                          .filter(sub => sub.category === formData.category && sub.isActive)
+                          .sort((a, b) => a.sortOrder - b.sortOrder);
+                        
+                        console.log('Current category:', formData.category);
+                        console.log('All subcategories:', subcategories);
+                        console.log('Filtered subcategories for category:', filteredSubcategories);
+                        
+                        if (filteredSubcategories.length === 0) {
+                          console.log('No subcategories found for category:', formData.category);
+                          return (
+                            <>
+                              <option value="" disabled>No subcategories available</option>
+                              {subcategories
+                                .filter(sub => sub.category === formData.category)
+                                .sort((a, b) => a.sortOrder - b.sortOrder)
+                                .map(sub => (
+                                  <option key={sub._id} value={sub.name}>
+                                    {sub.name} {!sub.isActive && '(Inactive)'}
+                                  </option>
+                                ))}
+                            </>
+                          );
+                        }
+                        
+                        return filteredSubcategories.map(sub => (
+                          <option key={sub._id} value={sub.name}>
+                            {sub.name}
+                          </option>
+                        ));
+                      })()}
                     </select>
                   </div>
 
@@ -858,13 +1072,133 @@ const ProductManagement = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Image URLs (one per line)
                   </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Enter one URL per line. Empty lines will be ignored. URLs without protocol will automatically get https://
+                  </p>
                   <textarea
-                    rows="3"
+                    rows="4"
                     value={formData.images.join('\n')}
-                    onChange={(e) => setFormData({...formData, images: e.target.value.split('\n').filter(url => url.trim())})}
-                    placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
+                    onChange={(e) => {
+                      const urls = e.target.value
+                        .split('\n')
+                        .map(url => url.trim())
+                        .filter(url => url.length > 0)
+                        .map(url => {
+                          // Remove any extra whitespace and normalize
+                          let cleanUrl = url.replace(/\s+/g, ' ').trim();
+                          
+                          // Ensure URL has proper protocol
+                          if (cleanUrl && !cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+                            cleanUrl = `https://${cleanUrl}`;
+                          }
+                          
+                          // Basic URL validation
+                          try {
+                            new URL(cleanUrl);
+                            return cleanUrl;
+                          } catch (error) {
+                            console.warn('Invalid URL format:', cleanUrl);
+                            return cleanUrl; // Still return it, let the image error handling deal with it
+                          }
+                        })
+                        .filter(url => url && url.length > 0); // Final filter for any remaining empty strings
+                      
+                      console.log('Processing image URLs:', urls);
+                      setFormData({...formData, images: urls});
+                    }}
+                    placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg&#10;https://example.com/image3.jpg"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const testUrls = [
+                          'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=500',
+                          'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=500',
+                          'https://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?w=500'
+                        ];
+                        setFormData({...formData, images: testUrls});
+                      }}
+                      className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+                    >
+                      Add Test Images
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const multiLineText = `https://images.unsplash.com/photo-1583394838336-acd977736f90?w=500
+                        
+                        images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=500
+                        
+                        http://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?w=500`;
+                        setFormData({...formData, images: multiLineText.split('\n').map(url => url.trim()).filter(url => url.length > 0)});
+                      }}
+                      className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"
+                    >
+                      Test Multi-Line
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({...formData, images: []})}
+                      className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200"
+                    >
+                      Clear Images
+                    </button>
+                    {formData.images.length > 0 && (
+                      <span className="text-sm text-gray-600">
+                        ({formData.images.length} image{formData.images.length !== 1 ? 's' : ''})
+                      </span>
+                    )}
+                  </div>
+                  {formData.images.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-600 mb-2">
+                        Preview ({formData.images.length} image{formData.images.length !== 1 ? 's' : ''}):
+                      </p>
+                      <div className="mb-2 text-xs text-gray-500">
+                        {formData.images.map((url, index) => {
+                          const isValid = url && (url.startsWith('http://') || url.startsWith('https://'));
+                          return (
+                            <div key={index} className={`mb-1 ${isValid ? 'text-green-600' : 'text-orange-600'}`}>
+                              {index + 1}. {isValid ? '✓' : '⚠'} {url}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {formData.images.map((url, index) => (
+                          <div key={index} className="relative">
+                            <img 
+                              src={url} 
+                              alt={`Preview ${index + 1}`}
+                              className="w-16 h-16 object-cover rounded border"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'block';
+                              }}
+                            />
+                            <div 
+                              className="w-16 h-16 bg-gray-200 rounded border flex items-center justify-center text-xs text-gray-500"
+                              style={{ display: 'none' }}
+                            >
+                              Error
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newImages = formData.images.filter((_, i) => i !== index);
+                                setFormData({...formData, images: newImages});
+                              }}
+                              className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -918,6 +1252,60 @@ const ProductManagement = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0">
+                <FaTrash className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-medium text-gray-900">Delete Product</h3>
+                <p className="text-sm text-gray-500">This action cannot be undone.</p>
+              </div>
+            </div>
+            
+            <div className="mt-4">
+              <p className="text-sm text-gray-700">
+                Are you sure you want to delete this product? This action will permanently remove the product from your catalog.
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setProductToDelete(null);
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={deleteLoading}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                {deleteLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaTrash size={14} />
+                    <span>Delete Product</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

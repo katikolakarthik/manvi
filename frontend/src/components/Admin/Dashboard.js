@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   FaUsers, 
   FaBox, 
   FaShoppingCart, 
   FaDollarSign,
   FaChartLine,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaSync,
+  FaTags
 } from 'react-icons/fa';
 import axios from 'axios';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalProducts: 0,
@@ -18,6 +22,11 @@ const Dashboard = () => {
   });
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [buttonLoading, setButtonLoading] = useState({
+    addProduct: false,
+    viewUsers: false,
+    processOrders: false
+  });
 
   useEffect(() => {
     fetchDashboardData();
@@ -53,6 +62,40 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Quick Action Handlers
+  const handleAddNewProduct = () => {
+    setButtonLoading(prev => ({ ...prev, addProduct: true }));
+    setTimeout(() => {
+      navigate('/admin/products');
+      setButtonLoading(prev => ({ ...prev, addProduct: false }));
+    }, 200);
+  };
+
+  const handleViewAllUsers = () => {
+    setButtonLoading(prev => ({ ...prev, viewUsers: true }));
+    setTimeout(() => {
+      navigate('/admin/users');
+      setButtonLoading(prev => ({ ...prev, viewUsers: false }));
+    }, 200);
+  };
+
+  const handleProcessOrders = () => {
+    setButtonLoading(prev => ({ ...prev, processOrders: true }));
+    setTimeout(() => {
+      navigate('/admin/orders');
+      setButtonLoading(prev => ({ ...prev, processOrders: false }));
+    }, 200);
+  };
+
+  const handleOrderClick = (orderId) => {
+    navigate(`/admin/orders?orderId=${orderId}`);
+  };
+
+  const handleRefreshDashboard = () => {
+    setLoading(true);
+    fetchDashboardData();
   };
 
   const StatCard = ({ title, value, icon: Icon, color, change }) => (
@@ -102,9 +145,23 @@ const Dashboard = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600">Welcome to your admin dashboard</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600">Welcome to your admin dashboard</p>
+        </div>
+        <button
+          onClick={handleRefreshDashboard}
+          disabled={loading}
+          className={`px-4 py-2 rounded-lg border border-gray-300 transition-colors ${
+            loading ? 'bg-gray-100 cursor-not-allowed' : 'hover:bg-gray-50'
+          }`}
+        >
+          <div className="flex items-center">
+            <FaSync className={`text-indigo-500 mr-2 ${loading ? 'animate-spin' : ''}`} size={14} />
+            <span className="text-sm font-medium">{loading ? 'Refreshing...' : 'Refresh'}</span>
+          </div>
+        </button>
       </div>
 
       {/* Statistics Cards */}
@@ -168,7 +225,11 @@ const Dashboard = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {recentOrders.length > 0 ? (
                 recentOrders.map((order) => (
-                  <tr key={order._id} className="hover:bg-gray-50">
+                  <tr 
+                    key={order._id} 
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleOrderClick(order._id)}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       #{order._id.slice(-6)}
                     </td>
@@ -203,22 +264,79 @@ const Dashboard = () => {
         <div className="bg-white rounded-lg shadow p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="space-y-3">
-            <button className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+            <button 
+              onClick={handleAddNewProduct}
+              disabled={buttonLoading.addProduct}
+              className={`w-full text-left p-3 rounded-lg border border-gray-200 transition-colors cursor-pointer ${
+                buttonLoading.addProduct ? 'bg-gray-100 cursor-not-allowed' : 'hover:bg-gray-50'
+              }`}
+            >
               <div className="flex items-center">
                 <FaBox className="text-blue-500 mr-3" size={16} />
-                <span>Add New Product</span>
+                <span>{buttonLoading.addProduct ? 'Loading...' : 'Add New Product'}</span>
               </div>
             </button>
-            <button className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+            <button 
+              onClick={() => navigate('/admin/products')}
+              className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center">
+                <FaBox className="text-green-500 mr-3" size={16} />
+                <span>View All Products</span>
+              </div>
+            </button>
+            <button 
+              onClick={handleViewAllUsers}
+              disabled={buttonLoading.viewUsers}
+              className={`w-full text-left p-3 rounded-lg border border-gray-200 transition-colors cursor-pointer ${
+                buttonLoading.viewUsers ? 'bg-gray-100 cursor-not-allowed' : 'hover:bg-gray-50'
+              }`}
+            >
               <div className="flex items-center">
                 <FaUsers className="text-green-500 mr-3" size={16} />
-                <span>View All Users</span>
+                <span>{buttonLoading.viewUsers ? 'Loading...' : 'View All Users'}</span>
               </div>
             </button>
-            <button className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+            <button 
+              onClick={handleProcessOrders}
+              disabled={buttonLoading.processOrders}
+              className={`w-full text-left p-3 rounded-lg border border-gray-200 transition-colors cursor-pointer ${
+                buttonLoading.processOrders ? 'bg-gray-100 cursor-not-allowed' : 'hover:bg-gray-50'
+              }`}
+            >
               <div className="flex items-center">
                 <FaShoppingCart className="text-purple-500 mr-3" size={16} />
-                <span>Process Orders</span>
+                <span>{buttonLoading.processOrders ? 'Loading...' : 'Process Orders'}</span>
+              </div>
+            </button>
+            <button 
+              onClick={() => navigate('/admin/orders')}
+              className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center">
+                <FaShoppingCart className="text-orange-500 mr-3" size={16} />
+                <span>View All Orders</span>
+              </div>
+            </button>
+            <button 
+              onClick={() => navigate('/admin/subcategories')}
+              className="w-full text-left p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center">
+                <FaTags className="text-teal-500 mr-3" size={16} />
+                <span>Manage Subcategories</span>
+              </div>
+            </button>
+            <button 
+              onClick={handleRefreshDashboard}
+              disabled={loading}
+              className={`w-full text-left p-3 rounded-lg border border-gray-200 transition-colors cursor-pointer ${
+                loading ? 'bg-gray-100 cursor-not-allowed' : 'hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center">
+                <FaSync className={`text-indigo-500 mr-3 ${loading ? 'animate-spin' : ''}`} size={16} />
+                <span>{loading ? 'Refreshing...' : 'Refresh Dashboard'}</span>
               </div>
             </button>
           </div>

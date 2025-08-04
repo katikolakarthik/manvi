@@ -185,7 +185,7 @@ const deleteOrder = async (req, res, next) => {
       });
     }
 
-    await order.remove();
+    await Order.findByIdAndDelete(req.params.id);
 
     res.status(200).json({
       success: true,

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useCart } from '../context/CartContext';
 
-const CartModal = ({ isOpen, onClose }) => {
+const CartModal = ({ isOpen, onClose, onProductClick }) => {
   const { items, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart();
 
   if (!isOpen) return null;
@@ -48,9 +48,17 @@ const CartModal = ({ isOpen, onClose }) => {
                     />
                   </div>
 
-                  {/* Product Details */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-medium text-gray-900 truncate">
+                  {/* Product Details - Clickable */}
+                  <div 
+                    className="flex-1 min-w-0 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+                    onClick={() => {
+                      if (onProductClick) {
+                        onProductClick(item.product);
+                        onClose(); // Close cart modal after navigation
+                      }
+                    }}
+                  >
+                    <h3 className="text-sm font-medium text-gray-900 truncate hover:text-pink-600">
                       {item.product.name}
                     </h3>
                     <p className="text-sm text-gray-500">Size: {item.size}</p>

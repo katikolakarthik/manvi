@@ -6,7 +6,8 @@ import {
   FaUsers, 
   FaShoppingCart, 
   FaBars,
-  FaTimes
+  FaTimes,
+  FaTags
 } from 'react-icons/fa';
 
 const AdminLayout = () => {
@@ -16,6 +17,7 @@ const AdminLayout = () => {
   const menuItems = [
     { path: '/admin', icon: FaTachometerAlt, label: 'Dashboard' },
     { path: '/admin/products', icon: FaBox, label: 'Products' },
+    { path: '/admin/subcategories', icon: FaTags, label: 'Subcategories' },
     { path: '/admin/users', icon: FaUsers, label: 'Users' },
     { path: '/admin/orders', icon: FaShoppingCart, label: 'Orders' },
   ];

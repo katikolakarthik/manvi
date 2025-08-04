@@ -17,6 +17,10 @@ const OrderManagement = () => {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState(null);
 
   const [statusForm, setStatusForm] = useState({
     status: '',
@@ -99,6 +103,81 @@ const OrderManagement = () => {
     }
   };
 
+  const handleDelete = async (orderId) => {
+    setOrderToDelete(orderId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!orderToDelete) return;
+    
+    setDeleteLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:5000/api/orders/${orderToDelete}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      await fetchOrders();
+      setShowDeleteModal(false);
+      setOrderToDelete(null);
+      alert('Order deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error deleting order. Please try again.';
+      alert(`Error deleting order: ${errorMessage}`);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedOrders.length === 0) {
+      alert('Please select orders to delete.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete ${selectedOrders.length} selected orders?`)) {
+      return;
+    }
+
+    setDeleteLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const deletePromises = selectedOrders.map(orderId =>
+        axios.delete(`http://localhost:5000/api/orders/${orderId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      );
+      
+      await Promise.all(deletePromises);
+      await fetchOrders();
+      setSelectedOrders([]);
+      alert(`${selectedOrders.length} orders deleted successfully!`);
+    } catch (error) {
+      console.error('Error deleting orders:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Error deleting orders. Please try again.';
+      alert(`Error deleting orders: ${errorMessage}`);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const handleSelectOrder = (orderId) => {
+    setSelectedOrders(prev => 
+      prev.includes(orderId) 
+        ? prev.filter(id => id !== orderId)
+        : [...prev, orderId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedOrders.length === filteredOrders.length) {
+      setSelectedOrders([]);
+    } else {
+      setSelectedOrders(filteredOrders.map(order => order._id));
+    }
+  };
+
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (order.user?.name && order.user.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -172,12 +251,49 @@ const OrderManagement = () => {
         </div>
       </div>
 
+      {/* Bulk Actions */}
+      {selectedOrders.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <span className="text-sm font-medium text-blue-900">
+                {selectedOrders.length} order(s) selected
+              </span>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                onClick={handleBulkDelete}
+                disabled={deleteLoading}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                <FaTrash size={14} />
+                <span>Delete Selected</span>
+              </button>
+              <button
+                onClick={() => setSelectedOrders([])}
+                className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+              >
+                Clear Selection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Orders Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <input
+                    type="checkbox"
+                    checked={selectedOrders.length === filteredOrders.length && filteredOrders.length > 0}
+                    onChange={handleSelectAll}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Order ID
                 </th>
@@ -204,6 +320,14 @@ const OrderManagement = () => {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredOrders.map((order) => (
                 <tr key={order._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedOrders.includes(order._id)}
+                      onChange={() => handleSelectOrder(order._id)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
                       #{order._id.slice(-6)}
@@ -256,6 +380,13 @@ const OrderManagement = () => {
                         title="View Order"
                       >
                         <FaEye size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(order._id)}
+                        className="text-red-600 hover:text-red-900"
+                        title="Delete Order"
+                      >
+                        <FaTrash size={16} />
                       </button>
                     </div>
                   </td>
@@ -426,6 +557,60 @@ const OrderManagement = () => {
                   </form>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0">
+                <FaTrash className="h-6 w-6 text-red-600" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-medium text-gray-900">Delete Order</h3>
+                <p className="text-sm text-gray-500">This action cannot be undone.</p>
+              </div>
+            </div>
+            
+            <div className="mt-4">
+              <p className="text-sm text-gray-700">
+                Are you sure you want to delete this order? This action will permanently remove the order from your system.
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setOrderToDelete(null);
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={deleteLoading}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              >
+                {deleteLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <FaTrash size={14} />
+                    <span>Delete Order</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

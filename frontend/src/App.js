@@ -7,11 +7,19 @@ import axios from "axios";
 import { CartProvider, useCart } from "./context/CartContext";
 import CartModal from "./components/CartModal";
 
+// Import Wishlist Components
+import { WishlistProvider, useWishlist } from "./context/WishlistContext";
+import WishlistModal from "./components/WishlistModal";
+
+// Import Filter Components
+import FilterModal from "./components/FilterModal";
+
 // Import Admin Components
 import AdminLayout from "./components/Admin/AdminLayout";
 import AdminLogin from "./components/Admin/AdminLogin";
 import Dashboard from "./components/Admin/Dashboard";
 import ProductManagement from "./components/Admin/ProductManagement";
+import SubcategoryManagement from "./components/Admin/SubcategoryManagement";
 import UserManagement from "./components/Admin/UserManagement";
 import OrderManagement from "./components/Admin/OrderManagement";
 
@@ -21,15 +29,19 @@ const API = `${BACKEND_URL}/api`;
 
 
 // Header Component
-const Header = ({ onCategorySelect, onSearchChange, onCartOpen }) => {
+const Header = ({ onCategorySelect, onSearchChange, onCartOpen, onWishlistOpen, onDebug }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const { getCartCount } = useCart();
+  const { getWishlistCount } = useWishlist();
 
   const categories = {
     dresses: ["cotton", "rayon", "organza", "georgette", "satin"],
     sarees: ["cotton", "fancy", "banarasi", "silk", "georgette", "designer"]
   };
+
+  // Materials that can be used across categories
+  const materials = ["cotton", "rayon", "organza", "georgette", "satin", "silk"];
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
@@ -74,13 +86,13 @@ const Header = ({ onCategorySelect, onSearchChange, onCartOpen }) => {
                 Dresses
               </button>
               <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
-                {categories.dresses.map((sub) => (
+                {categories.dresses.map((material) => (
                   <button
-                    key={sub}
+                    key={material}
                     className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 capitalize"
-                    onClick={() => onCategorySelect("dresses", sub)}
+                    onClick={() => onCategorySelect("dresses", material)}
                   >
-                    {sub}
+                    {material}
                   </button>
                 ))}
               </div>
@@ -104,11 +116,36 @@ const Header = ({ onCategorySelect, onSearchChange, onCartOpen }) => {
                 ))}
               </div>
             </div>
+            <div className="relative group">
+              <button 
+                className="text-gray-700 hover:text-gray-900 px-3 py-2 font-medium"
+                onClick={() => onCategorySelect("materials", null)}
+              >
+                Materials
+              </button>
+              <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
+                {materials.map((material) => (
+                  <button
+                    key={material}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 capitalize"
+                    onClick={() => onCategorySelect("materials", material)}
+                  >
+                    {material}
+                  </button>
+                ))}
+              </div>
+            </div>
             <button 
               className="text-gray-700 hover:text-gray-900 px-3 py-2 font-medium"
               onClick={() => onCategorySelect(null)}
             >
               Home
+            </button>
+            <button 
+              className="text-gray-700 hover:text-gray-900 px-3 py-2 font-medium"
+              onClick={onDebug}
+            >
+              Debug
             </button>
           </nav>
 
@@ -130,10 +167,18 @@ const Header = ({ onCategorySelect, onSearchChange, onCartOpen }) => {
 
           {/* Right Icons */}
           <div className="flex items-center space-x-4">
-            <button className="text-gray-700 hover:text-gray-900">
+            <button 
+              onClick={onWishlistOpen}
+              className="text-gray-700 hover:text-gray-900 relative"
+            >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
+              {getWishlistCount() > 0 && (
+                <span className="absolute -top-2 -right-2 bg-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {getWishlistCount()}
+                </span>
+              )}
             </button>
             <button 
               onClick={onCartOpen}
@@ -215,6 +260,25 @@ const Header = ({ onCategorySelect, onSearchChange, onCartOpen }) => {
                   ))}
                 </div>
               </div>
+              <div>
+                <button 
+                  className="block w-full text-left px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-50"
+                  onClick={() => onCategorySelect("materials")}
+                >
+                  Materials
+                </button>
+                <div className="ml-4 space-y-1">
+                  {materials.map((material) => (
+                    <button
+                      key={material}
+                      className="block w-full text-left px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 capitalize"
+                      onClick={() => onCategorySelect("materials", material)}
+                    >
+                      {material}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -228,13 +292,17 @@ const HeroSection = ({ featuredProducts }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
+    if (!featuredProducts || !Array.isArray(featuredProducts) || featuredProducts.length === 0) {
+      return;
+    }
+    
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % featuredProducts.length);
     }, 5000);
     return () => clearInterval(interval);
   }, [featuredProducts]);
 
-  if (!featuredProducts.length) return null;
+  if (!featuredProducts || !Array.isArray(featuredProducts) || !featuredProducts.length) return null;
 
   return (
     <div className="relative h-96 md:h-[500px] bg-gradient-to-r from-pink-50 to-purple-50 overflow-hidden">
@@ -263,15 +331,18 @@ const HeroSection = ({ featuredProducts }) => {
       {/* Background Images */}
       <div className="absolute inset-0 opacity-20">
         <img 
-          src={featuredProducts[currentSlide]?.images[0]} 
+          src={featuredProducts[currentSlide]?.images?.[0] || '/images/placeholder.jpg'} 
           alt="Hero" 
           className="w-full h-full object-cover"
+          onError={(e) => {
+            e.target.src = '/images/placeholder.jpg';
+          }}
         />
       </div>
       
       {/* Slide indicators */}
       <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-        {featuredProducts.map((_, index) => (
+        {featuredProducts && featuredProducts.map((_, index) => (
           <button
             key={index}
             className={`w-3 h-3 rounded-full transition-colors ${
@@ -286,9 +357,11 @@ const HeroSection = ({ featuredProducts }) => {
 };
 
 // Product Card Component
-const ProductCard = ({ product }) => {
+const ProductCard = ({ product, onProductClick }) => {
   const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
   const handleAddToCart = (e) => {
     e.stopPropagation(); // Prevent product detail from opening
@@ -297,22 +370,103 @@ const ProductCard = ({ product }) => {
     alert(`${product.name} added to cart!`);
   };
 
+  const handleWishlistToggle = (e) => {
+    e.stopPropagation(); // Prevent product detail from opening
+    if (isInWishlist(product._id)) {
+      removeFromWishlist(product._id);
+      alert(`${product.name} removed from wishlist!`);
+    } else {
+      addToWishlist(product);
+      alert(`${product.name} added to wishlist!`);
+    }
+  };
+
+  const nextImage = (e) => {
+    e.stopPropagation();
+    if (product.images && product.images.length > 1) {
+      setCurrentImageIndex((prev) => (prev + 1) % product.images.length);
+    }
+  };
+
+  const prevImage = (e) => {
+    e.stopPropagation();
+    if (product.images && product.images.length > 1) {
+      setCurrentImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length);
+    }
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-      <div className="relative">
+    <div 
+      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+      onClick={() => onProductClick && onProductClick(product)}
+    >
+      <div className="relative group">
         <img 
-          src={product.images && product.images[0] ? product.images[0] : '/images/placeholder.jpg'} 
+          src={product.images && product.images[currentImageIndex] ? product.images[currentImageIndex] : '/images/placeholder.jpg'} 
           alt={product.name} 
           className="w-full h-64 object-cover"
           onError={(e) => {
             e.target.src = '/images/placeholder.jpg';
           }}
         />
-        <button className="absolute top-4 right-4 text-gray-400 hover:text-pink-600">
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        
+        {/* Navigation arrows - only show if multiple images */}
+        {product.images && product.images.length > 1 && (
+          <>
+            <button 
+              onClick={prevImage}
+              className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button 
+              onClick={nextImage}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </>
+        )}
+        
+        {/* Image indicators */}
+        {product.images && product.images.length > 1 && (
+          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
+            {product.images.map((_, index) => (
+              <div
+                key={index}
+                className={`w-2 h-2 rounded-full transition-colors ${
+                  index === currentImageIndex ? 'bg-white' : 'bg-white bg-opacity-50'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+        
+        {/* Wishlist button */}
+        <button 
+          onClick={handleWishlistToggle}
+          className={`absolute top-4 right-4 p-1 rounded-full transition-colors ${
+            isInWishlist(product._id) 
+              ? 'text-pink-600 bg-white bg-opacity-90' 
+              : 'text-gray-400 hover:text-pink-600 bg-white bg-opacity-80 hover:bg-opacity-90'
+          }`}
+          title={isInWishlist(product._id) ? 'Remove from wishlist' : 'Add to wishlist'}
+        >
+          <svg className="w-6 h-6" fill={isInWishlist(product._id) ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
         </button>
+        
+        {/* Image count badge - only show if multiple images */}
+        {product.images && product.images.length > 1 && (
+          <div className="absolute top-4 left-4 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-full">
+            {currentImageIndex + 1}/{product.images.length}
+          </div>
+        )}
       </div>
       
       <div className="p-4">
@@ -363,11 +517,22 @@ const ProductDetail = ({ product, onBack }) => {
   const [currentImage, setCurrentImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState(product.sizes[0]);
   const { addToCart } = useCart();
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
   const handleAddToCart = () => {
     addToCart(product, selectedSize, 1);
     // Show success message
     alert(`${product.name} added to cart!`);
+  };
+
+  const handleWishlistToggle = () => {
+    if (isInWishlist(product._id)) {
+      removeFromWishlist(product._id);
+      alert(`${product.name} removed from wishlist!`);
+    } else {
+      addToWishlist(product);
+      alert(`${product.name} added to wishlist!`);
+    }
   };
 
   return (
@@ -385,26 +550,56 @@ const ProductDetail = ({ product, onBack }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Image Gallery */}
         <div>
-          <div className="mb-4">
-            <img 
-              src={product.images[currentImage]} 
-              alt={product.name} 
-              className="w-full h-96 object-cover rounded-lg"
-            />
+          <div className="mb-4 relative">
+            {product.images && product.images.length > 0 ? (
+              <>
+                <img 
+                  src={product.images[currentImage] ? product.images[currentImage] : '/images/placeholder.jpg'} 
+                  alt={product.name} 
+                  className="w-full h-96 object-cover rounded-lg"
+                  onError={(e) => {
+                    e.target.src = '/images/placeholder.jpg';
+                  }}
+                />
+                {product.images.length > 1 && (
+                  <div className="absolute top-4 right-4 bg-black bg-opacity-70 text-white text-sm px-3 py-1 rounded-full">
+                    {currentImage + 1} of {product.images.length}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="w-full h-96 bg-gray-200 rounded-lg flex items-center justify-center">
+                <div className="text-center text-gray-500">
+                  <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p>No images available</p>
+                </div>
+              </div>
+            )}
           </div>
-          <div className="flex space-x-2">
-            {product.images.map((image, index) => (
-              <button
-                key={index}
-                className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${
-                  index === currentImage ? 'border-pink-600' : 'border-gray-300'
-                }`}
-                onClick={() => setCurrentImage(index)}
-              >
-                <img src={image} alt={`${product.name} ${index + 1}`} className="w-full h-full object-cover" />
-              </button>
-            ))}
-          </div>
+          {product.images && product.images.length > 1 && (
+            <div className="flex space-x-2">
+              {product.images.map((image, index) => (
+                <button
+                  key={index}
+                  className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${
+                    index === currentImage ? 'border-pink-600' : 'border-gray-300'
+                  }`}
+                  onClick={() => setCurrentImage(index)}
+                >
+                  <img 
+                    src={image} 
+                    alt={`${product.name} ${index + 1}`} 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = '/images/placeholder.jpg';
+                    }}
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Product Info */}
@@ -473,14 +668,25 @@ const ProductDetail = ({ product, onBack }) => {
           </div>
 
           <div className="flex space-x-4">
-            <button className="flex-1 bg-pink-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-pink-700 transition-colors">
+            <button 
+              onClick={handleAddToCart}
+              className="flex-1 bg-pink-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-pink-700 transition-colors"
+            >
               <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
               Add to Cart
             </button>
-            <button className="border border-gray-300 px-6 py-3 rounded-lg hover:bg-gray-50 transition-colors">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <button 
+              onClick={handleWishlistToggle}
+              className={`border px-6 py-3 rounded-lg transition-colors ${
+                isInWishlist(product._id) 
+                  ? 'border-pink-300 bg-pink-50 text-pink-600 hover:bg-pink-100' 
+                  : 'border-gray-300 hover:bg-gray-50'
+              }`}
+              title={isInWishlist(product._id) ? 'Remove from wishlist' : 'Add to wishlist'}
+            >
+              <svg className={`w-5 h-5 ${isInWishlist(product._id) ? 'fill-current' : ''}`} stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             </button>
@@ -498,12 +704,16 @@ const ProductDetail = ({ product, onBack }) => {
 
 
 
+// Helper function to safely capitalize strings
+const safeCapitalize = (str) => {
+  if (!str || typeof str !== 'string') return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
 // Main App Component
-const App = ({ onCartOpen }) => {
+const App = ({ onCartOpen, onWishlistOpen, selectedProduct, currentView, onProductClick, onBackToProducts, setCurrentView, sortBy, setSortBy, isFilterModalOpen, setIsFilterModalOpen, priceRange, setPriceRange, selectedMaterials, setSelectedMaterials, selectedSizes, setSelectedSizes }) => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [currentView, setCurrentView] = useState('home'); // 'home', 'products', 'detail'
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -537,55 +747,173 @@ const App = ({ onCartOpen }) => {
   };
 
   const handleCategorySelect = (category, subcategory = null) => {
-    setSelectedCategory(category);
-    setSelectedSubcategory(subcategory);
-    
-    if (!category) {
-      setCurrentView('home');
-      setFilteredProducts(products);
-    } else {
-      setCurrentView('products');
-      filterProducts(category, subcategory, searchTerm);
+    try {
+      console.log('Category selection:', { category, subcategory });
+      setSelectedCategory(category);
+      setSelectedSubcategory(subcategory);
+      
+      if (!category) {
+        setCurrentView('home');
+        setFilteredProducts(products || []);
+      } else {
+        setCurrentView('products');
+        filterProducts(category, subcategory, searchTerm);
+      }
+    } catch (error) {
+      console.error('Error in handleCategorySelect:', error);
+      setFilteredProducts([]);
     }
   };
 
   const handleSearchChange = (term) => {
     setSearchTerm(term);
-    filterProducts(selectedCategory, selectedSubcategory, term);
+    if (products && Array.isArray(products)) {
+      filterProducts(selectedCategory, selectedSubcategory, term);
+    }
+  };
+
+  const handleSortChange = (sortType) => {
+    setSortBy(sortType);
+    if (products && Array.isArray(products)) {
+      filterProducts(selectedCategory, selectedSubcategory, searchTerm);
+    }
+  };
+
+  const sortProducts = (productsToSort, sortType) => {
+    if (!productsToSort || !Array.isArray(productsToSort)) return productsToSort;
+    
+    const sorted = [...productsToSort];
+    
+    switch (sortType) {
+      case "price-low-high":
+        return sorted.sort((a, b) => (a.price || 0) - (b.price || 0));
+      case "price-high-low":
+        return sorted.sort((a, b) => (b.price || 0) - (a.price || 0));
+      case "newest":
+        return sorted.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+      case "popular":
+        // For now, sort by name as a placeholder for popularity
+        return sorted.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      default:
+        return sorted;
+    }
   };
 
   const filterProducts = (category, subcategory, search) => {
-    let filtered = products;
+    try {
+      if (!products || !Array.isArray(products)) {
+        console.log('No products array available');
+        setFilteredProducts([]);
+        return;
+      }
+      
+      let filtered = products;
+    
+    console.log('Filtering products:', { category, subcategory, search, totalProducts: products.length });
+    console.log('Sample product data:', products.slice(0, 2).map(p => ({ 
+      name: p.name, 
+      category: p.category, 
+      subcategory: p.subcategory, 
+      material: p.material 
+    })));
     
     if (category) {
-      filtered = filtered.filter(p => p.category === category);
-    }
-    
-    if (subcategory) {
-      filtered = filtered.filter(p => p.subcategory === subcategory);
+      if (category === "materials") {
+        if (subcategory) {
+          // Filter by specific material across all categories
+          filtered = filtered.filter(p => 
+            p.material && p.material.toLowerCase() === subcategory.toLowerCase()
+          );
+          console.log(`Filtered by material "${subcategory}":`, filtered.length, 'products');
+        } else {
+          // Show all products when materials category is selected but no specific material
+          console.log(`Showing all products for materials category:`, filtered.length, 'products');
+        }
+      } else {
+        // Filter by category (dresses/sarees)
+        // The category should be in the subcategory field, and main category is usually "clothing"
+        filtered = filtered.filter(p => 
+          (p.subcategory && p.subcategory === category) || (p.category && p.category === category)
+        );
+        console.log(`Filtered by category "${category}":`, filtered.length, 'products');
+        
+        // If subcategory is specified, filter by material within that category
+        if (subcategory) {
+          filtered = filtered.filter(p => 
+            p.material && p.material.toLowerCase() === subcategory.toLowerCase()
+          );
+          console.log(`Further filtered by material "${subcategory}":`, filtered.length, 'products');
+        }
+      }
     }
     
     if (search) {
       filtered = filtered.filter(p => 
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.description.toLowerCase().includes(search.toLowerCase()) ||
-        p.material.toLowerCase().includes(search.toLowerCase())
+        (p.name && p.name.toLowerCase().includes(search.toLowerCase())) ||
+        (p.description && p.description.toLowerCase().includes(search.toLowerCase())) ||
+        (p.material && p.material && p.material.toLowerCase().includes(search.toLowerCase()))
+      );
+      console.log(`Filtered by search "${search}":`, filtered.length, 'products');
+    }
+
+    // Apply price range filter
+    filtered = filtered.filter(p => {
+      const price = p.price || 0;
+      return price >= priceRange.min && price <= priceRange.max;
+    });
+
+    // Apply material filter
+    if (selectedMaterials.length > 0) {
+      filtered = filtered.filter(p => 
+        p.material && selectedMaterials.includes(p.material.toLowerCase())
+      );
+    }
+
+    // Apply size filter
+    if (selectedSizes.length > 0) {
+      filtered = filtered.filter(p => 
+        p.sizes && p.sizes.some(size => selectedSizes.includes(size))
       );
     }
     
-    setFilteredProducts(filtered);
+    console.log('Final filtered products:', filtered.length);
+    
+    // Apply sorting
+    const sortedProducts = sortProducts(filtered, sortBy);
+    setFilteredProducts(sortedProducts);
+    } catch (error) {
+      console.error('Error in filterProducts:', error);
+      setFilteredProducts([]);
+    }
   };
 
-  const handleProductClick = (product) => {
-    setSelectedProduct(product);
-    setCurrentView('detail');
-  };
 
 
-
-  const handleBackToProducts = () => {
-    setCurrentView('products');
-    setSelectedProduct(null);
+  const handleDebug = () => {
+    try {
+      console.log('=== PRODUCT DATA DEBUG ===');
+      if (!products || !Array.isArray(products)) {
+        console.log('No products data available');
+        console.log('Products type:', typeof products);
+        console.log('Products value:', products);
+      } else {
+        console.log('Total products:', products.length);
+        console.log('Current filters:', { selectedCategory, selectedSubcategory });
+        products.forEach((p, i) => {
+          console.log(`Product ${i + 1}:`, {
+            name: p?.name || 'No name',
+            category: p?.category || 'No category',
+            subcategory: p?.subcategory || 'No subcategory',
+            material: p?.material || 'No material',
+            matchesCategory: selectedCategory ? (p?.subcategory === selectedCategory || p?.category === selectedCategory) : 'N/A',
+            matchesMaterial: selectedSubcategory ? (p?.material && p.material.toLowerCase() === selectedSubcategory.toLowerCase()) : 'N/A'
+          });
+        });
+      }
+      console.log('=== END DEBUG ===');
+    } catch (error) {
+      console.error('Error in debug function:', error);
+    }
   };
 
   if (loading) {
@@ -607,6 +935,7 @@ const App = ({ onCartOpen }) => {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="products" element={<ProductManagement />} />
+          <Route path="subcategories" element={<SubcategoryManagement />} />
           <Route path="users" element={<UserManagement />} />
           <Route path="orders" element={<OrderManagement />} />
         </Route>
@@ -618,24 +947,24 @@ const App = ({ onCartOpen }) => {
               onCategorySelect={handleCategorySelect}
               onSearchChange={handleSearchChange}
               onCartOpen={onCartOpen}
+              onWishlistOpen={onWishlistOpen}
+              onDebug={handleDebug}
             />
             
             {currentView === 'home' && (
               <div>
-                <HeroSection featuredProducts={products.slice(0, 4)} />
+                <HeroSection featuredProducts={products && Array.isArray(products) ? products.slice(0, 4) : []} />
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                   <h2 className="text-3xl font-bold text-gray-900 mb-8">Featured Products</h2>
-                  {products.length === 0 ? (
+                  {!products || !Array.isArray(products) || products.length === 0 ? (
                     <div className="text-center py-8">
                       <p className="text-gray-600">No products found. Please check the console for errors.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                          {products.slice(0, 8).map(product => (
-                      <div key={product._id || product.id} onClick={() => handleProductClick(product)} className="cursor-pointer">
-                        <ProductCard product={product} />
-                      </div>
-                    ))}
+                      {products.slice(0, 8).map(product => (
+                        <ProductCard key={product._id || product.id} product={product} onProductClick={onProductClick} />
+                      ))}
                     </div>
                   )}
                 </div>
@@ -647,34 +976,41 @@ const App = ({ onCartOpen }) => {
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-gray-900">
                     {selectedCategory ? 
-                      `${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)} ${selectedSubcategory ? `- ${selectedSubcategory.charAt(0).toUpperCase() + selectedSubcategory.slice(1)}` : ''}` : 
+                      selectedCategory === "materials" ? 
+                        selectedSubcategory ? `${safeCapitalize(selectedSubcategory)} Products` : 'All Materials' :
+                        `${safeCapitalize(selectedCategory)} ${selectedSubcategory ? `- ${safeCapitalize(selectedSubcategory)}` : ''}` : 
                       'All Products'
-                    } ({filteredProducts.length} items)
+                    } ({filteredProducts && Array.isArray(filteredProducts) ? filteredProducts.length : 0} items)
                   </h2>
                   <div className="flex items-center space-x-4">
-                    <select className="border border-gray-300 rounded-lg px-4 py-2">
-                      <option>Sort by</option>
-                      <option>Price: Low to High</option>
-                      <option>Price: High to Low</option>
-                      <option>Newest</option>
-                      <option>Popular</option>
+                    <select 
+                      className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                      value={sortBy}
+                      onChange={(e) => handleSortChange(e.target.value)}
+                    >
+                      <option value="default">Sort by</option>
+                      <option value="price-low-high">Price: Low to High</option>
+                      <option value="price-high-low">Price: High to Low</option>
+                      <option value="newest">Newest</option>
+                      <option value="popular">Popular</option>
                     </select>
-                    <button className="border border-gray-300 rounded-lg px-4 py-2">
+                    <button 
+                      className="border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50 focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                      onClick={() => setIsFilterModalOpen(true)}
+                    >
                       Filter
                     </button>
                   </div>
                 </div>
                 
-                {filteredProducts.length === 0 ? (
+                {!filteredProducts || !Array.isArray(filteredProducts) || filteredProducts.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-gray-600">No products found in this category.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                     {filteredProducts.map(product => (
-                      <div key={product._id || product.id} onClick={() => handleProductClick(product)} className="cursor-pointer">
-                        <ProductCard product={product} />
-                      </div>
+                      <ProductCard key={product._id || product.id} product={product} onProductClick={onProductClick} />
                     ))}
                   </div>
                 )}
@@ -684,7 +1020,7 @@ const App = ({ onCartOpen }) => {
             {currentView === 'detail' && selectedProduct && (
               <ProductDetail 
                 product={selectedProduct} 
-                onBack={handleBackToProducts}
+                onBack={onBackToProducts}
               />
             )}
           </div>
@@ -694,16 +1030,87 @@ const App = ({ onCartOpen }) => {
   );
 };
 
-// Wrapper component to handle cart modal
+// Wrapper component to handle cart and wishlist modals
 const AppWithCart = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [currentView, setCurrentView] = useState('home');
+  const [sortBy, setSortBy] = useState("default");
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+  const [priceRange, setPriceRange] = useState({ min: 0, max: 100000 });
+  const [selectedMaterials, setSelectedMaterials] = useState([]);
+  const [selectedSizes, setSelectedSizes] = useState([]);
+
+  const handleProductClick = (product) => {
+    setSelectedProduct(product);
+    setCurrentView('detail');
+  };
+
+  const handleBackToProducts = () => {
+    setSelectedProduct(null);
+    setCurrentView('home');
+  };
+
+  const handleFilterApply = (filters) => {
+    setPriceRange(filters.priceRange);
+    setSelectedMaterials(filters.materials);
+    setSelectedSizes(filters.sizes);
+    setIsFilterModalOpen(false);
+  };
+
+  const handleFilterClear = () => {
+    setPriceRange({ min: 0, max: 100000 });
+    setSelectedMaterials([]);
+    setSelectedSizes([]);
+  };
 
   return (
     <CartProvider>
-      <div>
-        <App onCartOpen={() => setIsCartOpen(true)} />
-        <CartModal isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
-      </div>
+      <WishlistProvider>
+        <div>
+          <App 
+            onCartOpen={() => setIsCartOpen(true)} 
+            onWishlistOpen={() => setIsWishlistOpen(true)}
+            selectedProduct={selectedProduct}
+            currentView={currentView}
+            onProductClick={handleProductClick}
+            onBackToProducts={handleBackToProducts}
+            setCurrentView={setCurrentView}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
+            isFilterModalOpen={isFilterModalOpen}
+            setIsFilterModalOpen={setIsFilterModalOpen}
+            priceRange={priceRange}
+            setPriceRange={setPriceRange}
+            selectedMaterials={selectedMaterials}
+            setSelectedMaterials={setSelectedMaterials}
+            selectedSizes={selectedSizes}
+            setSelectedSizes={setSelectedSizes}
+          />
+          <CartModal 
+            isOpen={isCartOpen} 
+            onClose={() => setIsCartOpen(false)} 
+            onProductClick={handleProductClick}
+          />
+          <WishlistModal 
+            isOpen={isWishlistOpen} 
+            onClose={() => setIsWishlistOpen(false)} 
+            onProductClick={handleProductClick}
+          />
+          <FilterModal 
+            isOpen={isFilterModalOpen} 
+            onClose={() => setIsFilterModalOpen(false)} 
+            onApply={handleFilterApply}
+            onClear={handleFilterClear}
+            currentFilters={{
+              priceRange,
+              materials: selectedMaterials,
+              sizes: selectedSizes
+            }}
+          />
+        </div>
+      </WishlistProvider>
     </CartProvider>
   );
 };

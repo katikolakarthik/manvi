@@ -84,13 +84,26 @@ const getProduct = async (req, res, next) => {
 // @access  Private/Admin
 const createProduct = async (req, res, next) => {
   try {
+    console.log('Creating product with data:', {
+      ...req.body,
+      images: req.body.images,
+      imageCount: req.body.images ? req.body.images.length : 0
+    });
+
     const product = await Product.create(req.body);
+
+    console.log('Product created successfully:', {
+      id: product._id,
+      images: product.images,
+      imageCount: product.images ? product.images.length : 0
+    });
 
     res.status(201).json({
       success: true,
       data: product
     });
   } catch (error) {
+    console.error('Error creating product:', error);
     next(error);
   }
 };
@@ -100,6 +113,13 @@ const createProduct = async (req, res, next) => {
 // @access  Private/Admin
 const updateProduct = async (req, res, next) => {
   try {
+    console.log('Updating product with data:', {
+      productId: req.params.id,
+      ...req.body,
+      images: req.body.images,
+      imageCount: req.body.images ? req.body.images.length : 0
+    });
+
     let product = await Product.findById(req.params.id);
 
     if (!product) {
@@ -114,11 +134,18 @@ const updateProduct = async (req, res, next) => {
       runValidators: true
     });
 
+    console.log('Product updated successfully:', {
+      id: product._id,
+      images: product.images,
+      imageCount: product.images ? product.images.length : 0
+    });
+
     res.status(200).json({
       success: true,
       data: product
     });
   } catch (error) {
+    console.error('Error updating product:', error);
     next(error);
   }
 };
@@ -137,7 +164,7 @@ const deleteProduct = async (req, res, next) => {
       });
     }
 
-    await product.remove();
+    await Product.findByIdAndDelete(req.params.id);
 
     res.status(200).json({
       success: true,

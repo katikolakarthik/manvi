@@ -1,10 +1,7 @@
 const winston = require('winston');
 
-// Define log format
+// Define log format without timestamp
 const logFormat = winston.format.combine(
-  winston.format.timestamp({
-    format: 'YYYY-MM-DD HH:mm:ss'
-  }),
   winston.format.errors({ stack: true }),
   winston.format.json()
 );
@@ -13,9 +10,8 @@ const logFormat = winston.format.combine(
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: logFormat,
-  defaultMeta: { service: 'manvi-backend' },
   transports: [
-    // Write all logs with importance level of `error` or less to `error.log`
+    // Write all logs with importance level of `error` or less to `error.log` 
     new winston.transports.File({ 
       filename: 'logs/error.log', 
       level: 'error',

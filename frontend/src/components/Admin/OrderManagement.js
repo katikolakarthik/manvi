@@ -34,6 +34,24 @@ const OrderManagement = () => {
 
   useEffect(() => {
     fetchOrders();
+    
+    // Listen for payment success events
+    const handlePaymentSuccess = (event) => {
+      console.log('Payment successful, refreshing admin orders...');
+      setTimeout(() => {
+        fetchOrders();
+      }, 1000); // Small delay to ensure backend has processed the order
+    };
+
+    window.addEventListener('payment-successful', handlePaymentSuccess);
+    
+    // Poll for new orders every 30 seconds
+    const interval = setInterval(fetchOrders, 30000);
+
+    return () => {
+      window.removeEventListener('payment-successful', handlePaymentSuccess);
+      clearInterval(interval);
+    };
   }, []);
 
   const fetchOrders = async () => {

@@ -1112,34 +1112,6 @@ const ProductManagement = () => {
                   <div className="mt-2 flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => {
-                        const testUrls = [
-                          'https://images.unsplash.com/photo-1583394838336-acd977736f90?w=500',
-                          'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=500',
-                          'https://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?w=500'
-                        ];
-                        setFormData({...formData, images: testUrls});
-                      }}
-                      className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
-                    >
-                      Add Test Images
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const multiLineText = `https://images.unsplash.com/photo-1583394838336-acd977736f90?w=500
-                        
-                        images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=500
-                        
-                        http://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?w=500`;
-                        setFormData({...formData, images: multiLineText.split('\n').map(url => url.trim()).filter(url => url.length > 0)});
-                      }}
-                      className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"
-                    >
-                      Test Multi-Line
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => setFormData({...formData, images: []})}
                       className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200"
                     >

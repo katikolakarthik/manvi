@@ -25,6 +25,9 @@ const register = async (req, res, next) => {
       password
     });
 
+    console.log(`✅ New user registered: ${user.name} (${user.email})`);
+    console.log(`📊 User ID: ${user._id}, Role: ${user.role}`);
+
     sendTokenResponse(user, 201, res);
   } catch (error) {
     next(error);
@@ -69,6 +72,9 @@ const login = async (req, res, next) => {
     // Update last login
     user.lastLogin = new Date();
     await user.save();
+
+    console.log(`✅ User logged in: ${user.name} (${user.email})`);
+    console.log(`📊 Last login updated: ${user.lastLogin}`);
 
     sendTokenResponse(user, 200, res);
   } catch (error) {

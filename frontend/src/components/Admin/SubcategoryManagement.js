@@ -38,27 +38,8 @@ const SubcategoryManagement = () => {
     fetchSubcategories();
   }, []);
 
-  const testBackendConnection = async () => {
-    try {
-      console.log('Testing backend connection...');
-      const response = await axios.get('http://localhost:5000/api/test-subcategories');
-      console.log('Backend test response:', response.data);
-      return true;
-    } catch (error) {
-      console.error('Backend connection test failed:', error);
-      return false;
-    }
-  };
-
   const fetchSubcategories = async () => {
     try {
-      // First test if backend is accessible
-      const backendAccessible = await testBackendConnection();
-      if (!backendAccessible) {
-        alert('Backend server is not accessible. Please check if the server is running.');
-        setLoading(false);
-        return;
-      }
 
       const token = localStorage.getItem('token');
       
@@ -304,12 +285,7 @@ const SubcategoryManagement = () => {
             <FaPlus className="mr-2" />
             Add Subcategory
           </button>
-          <button
-            onClick={testBackendConnection}
-            className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 flex items-center"
-          >
-            Test Connection
-          </button>
+
         </div>
       </div>
 

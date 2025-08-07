@@ -18,6 +18,7 @@ const userRoutes = require('./routes/users');
 const productRoutes = require('./routes/products');
 const orderRoutes = require('./routes/orders');
 const subcategoryRoutes = require('./routes/subcategories');
+const paymentRoutes = require('./routes/payment');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -76,14 +77,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Test subcategories endpoint (public)
-app.get('/api/test-subcategories', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Subcategories API is accessible',
-    timestamp: new Date().toISOString()
-  });
-});
+
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -91,6 +85,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/subcategories', subcategoryRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // 404 handler
 app.use(notFound);

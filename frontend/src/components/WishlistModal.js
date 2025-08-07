@@ -1,10 +1,36 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useWishlist } from '../context/WishlistContext';
+import Checkout from './Checkout';
 
 const WishlistModal = ({ isOpen, onClose, onProductClick }) => {
   const { items, removeFromWishlist, clearWishlist } = useWishlist();
+  const [showCheckout, setShowCheckout] = useState(false);
 
   if (!isOpen) return null;
+
+  // Show checkout if requested
+  if (showCheckout) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between p-6 border-b">
+            <h2 className="text-2xl font-bold text-gray-900">Checkout from Wishlist</h2>
+            <button
+              onClick={() => setShowCheckout(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="p-6">
+            <Checkout items={items} source="wishlist" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -78,6 +104,19 @@ const WishlistModal = ({ isOpen, onClose, onProductClick }) => {
               <div className="text-sm text-gray-600">
                 {items.length} item{items.length !== 1 ? 's' : ''} in wishlist
               </div>
+            </div>
+            
+            {/* Checkout Button */}
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <button
+                onClick={() => setShowCheckout(true)}
+                className="w-full bg-pink-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-pink-700 transition-colors"
+              >
+                <svg className="w-5 h-5 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+                Checkout All Items
+              </button>
             </div>
           </>
         )}

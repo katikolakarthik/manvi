@@ -32,6 +32,29 @@ const UserManagement = () => {
     fetchUsers();
   }, []);
 
+  // Add event listeners for real-time user updates
+  useEffect(() => {
+    const handleUserRegistered = (event) => {
+      console.log('User registered:', event.detail);
+      fetchUsers(); // Refresh user list
+    };
+
+    const handleUserLoggedIn = (event) => {
+      console.log('User logged in:', event.detail);
+      // Optionally update user status or refresh list
+      fetchUsers();
+    };
+
+    // Listen for user events
+    window.addEventListener('user-registered', handleUserRegistered);
+    window.addEventListener('user-logged-in', handleUserLoggedIn);
+    
+    return () => {
+      window.removeEventListener('user-registered', handleUserRegistered);
+      window.removeEventListener('user-logged-in', handleUserLoggedIn);
+    };
+  }, []);
+
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('token');

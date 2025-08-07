@@ -22,6 +22,15 @@ import ProductManagement from "./components/Admin/ProductManagement";
 import SubcategoryManagement from "./components/Admin/SubcategoryManagement";
 import UserManagement from "./components/Admin/UserManagement";
 import OrderManagement from "./components/Admin/OrderManagement";
+import UserRegistration from "./components/UserRegistration";
+import UserLogin from "./components/UserLogin";
+import UserProfile from "./components/UserProfile";
+import UserProfilePage from "./components/UserProfilePage";
+import PayNowButton from "./components/PayNowButton";
+import Checkout from "./components/Checkout";
+import PaymentManagement from "./components/Admin/PaymentManagement";
+
+import OrderNotification from "./components/OrderNotification";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 const API = `${BACKEND_URL}/api`;
@@ -193,11 +202,7 @@ const Header = ({ onCategorySelect, onSearchChange, onCartOpen, onWishlistOpen, 
                 </span>
               )}
             </button>
-            <button className="text-gray-700 hover:text-gray-900">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </button>
+            <UserProfile />
           </div>
         </div>
 
@@ -667,7 +672,7 @@ const ProductDetail = ({ product, onBack }) => {
             </select>
           </div>
 
-          <div className="flex space-x-4">
+          <div className="flex space-x-4 mb-4">
             <button 
               onClick={handleAddToCart}
               className="flex-1 bg-pink-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-pink-700 transition-colors"
@@ -690,6 +695,11 @@ const ProductDetail = ({ product, onBack }) => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             </button>
+          </div>
+          
+          {/* Pay Now Button */}
+          <div className="mb-6">
+            <PayNowButton product={product} className="w-full" />
           </div>
 
           <div className="mt-8">
@@ -928,105 +938,108 @@ const App = ({ onCartOpen, onWishlistOpen, selectedProduct, currentView, onProdu
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Admin Routes */}
-        <Route path="/admin-login" element={<AdminLogin />} />
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="products" element={<ProductManagement />} />
-          <Route path="subcategories" element={<SubcategoryManagement />} />
-          <Route path="users" element={<UserManagement />} />
-          <Route path="orders" element={<OrderManagement />} />
-        </Route>
+    <Routes>
+      {/* Admin Routes */}
+      <Route path="/register" element={<UserRegistration />} />
+      <Route path="/login" element={<UserLogin />} />
+      <Route path="/profile" element={<UserProfilePage />} />
+      <Route path="/admin-login" element={<AdminLogin />} />
+      
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<Dashboard />} />
+        <Route path="products" element={<ProductManagement />} />
+        <Route path="subcategories" element={<SubcategoryManagement />} />
+        <Route path="users" element={<UserManagement />} />
+        <Route path="orders" element={<OrderManagement />} />
+        <Route path="payments" element={<PaymentManagement />} />
+      </Route>
 
-        {/* Main App Routes */}
-        <Route path="/" element={
-          <div className="min-h-screen bg-gray-50">
-            <Header 
-              onCategorySelect={handleCategorySelect}
-              onSearchChange={handleSearchChange}
-              onCartOpen={onCartOpen}
-              onWishlistOpen={onWishlistOpen}
-              onDebug={handleDebug}
-            />
-            
-            {currentView === 'home' && (
-              <div>
-                <HeroSection featuredProducts={products && Array.isArray(products) ? products.slice(0, 4) : []} />
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-                  <h2 className="text-3xl font-bold text-gray-900 mb-8">Featured Products</h2>
-                  {!products || !Array.isArray(products) || products.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-gray-600">No products found. Please check the console for errors.</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                      {products.slice(0, 8).map(product => (
-                        <ProductCard key={product._id || product.id} product={product} onProductClick={onProductClick} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            
-            {currentView === 'products' && (
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {selectedCategory ? 
-                      selectedCategory === "materials" ? 
-                        selectedSubcategory ? `${safeCapitalize(selectedSubcategory)} Products` : 'All Materials' :
-                        `${safeCapitalize(selectedCategory)} ${selectedSubcategory ? `- ${safeCapitalize(selectedSubcategory)}` : ''}` : 
-                      'All Products'
-                    } ({filteredProducts && Array.isArray(filteredProducts) ? filteredProducts.length : 0} items)
-                  </h2>
-                  <div className="flex items-center space-x-4">
-                    <select 
-                      className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                      value={sortBy}
-                      onChange={(e) => handleSortChange(e.target.value)}
-                    >
-                      <option value="default">Sort by</option>
-                      <option value="price-low-high">Price: Low to High</option>
-                      <option value="price-high-low">Price: High to Low</option>
-                      <option value="newest">Newest</option>
-                      <option value="popular">Popular</option>
-                    </select>
-                    <button 
-                      className="border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50 focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                      onClick={() => setIsFilterModalOpen(true)}
-                    >
-                      Filter
-                    </button>
-                  </div>
-                </div>
-                
-                {!filteredProducts || !Array.isArray(filteredProducts) || filteredProducts.length === 0 ? (
+      {/* Main App Routes */}
+      <Route path="/" element={
+        <div className="min-h-screen bg-gray-50">
+          <Header 
+            onCategorySelect={handleCategorySelect}
+            onSearchChange={handleSearchChange}
+            onCartOpen={onCartOpen}
+            onWishlistOpen={onWishlistOpen}
+            onDebug={handleDebug}
+          />
+          
+          {currentView === 'home' && (
+            <div>
+              <HeroSection featuredProducts={products && Array.isArray(products) ? products.slice(0, 4) : []} />
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                <h2 className="text-3xl font-bold text-gray-900 mb-8">Featured Products</h2>
+                {!products || !Array.isArray(products) || products.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-gray-600">No products found in this category.</p>
+                    <p className="text-gray-600">No products found. Please check the console for errors.</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {filteredProducts.map(product => (
+                    {products.slice(0, 8).map(product => (
                       <ProductCard key={product._id || product.id} product={product} onProductClick={onProductClick} />
                     ))}
                   </div>
                 )}
               </div>
-            )}
-            
-            {currentView === 'detail' && selectedProduct && (
-              <ProductDetail 
-                product={selectedProduct} 
-                onBack={onBackToProducts}
-              />
-            )}
-          </div>
-        } />
-      </Routes>
-    </BrowserRouter>
+            </div>
+          )}
+          
+          {currentView === 'products' && (
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {selectedCategory ? 
+                    selectedCategory === "materials" ? 
+                      selectedSubcategory ? `${safeCapitalize(selectedSubcategory)} Products` : 'All Materials' :
+                      `${safeCapitalize(selectedCategory)} ${selectedSubcategory ? `- ${safeCapitalize(selectedSubcategory)}` : ''}` : 
+                    'All Products'
+                  } ({filteredProducts && Array.isArray(filteredProducts) ? filteredProducts.length : 0} items)
+                </h2>
+                <div className="flex items-center space-x-4">
+                  <select 
+                    className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                    value={sortBy}
+                    onChange={(e) => handleSortChange(e.target.value)}
+                  >
+                    <option value="default">Sort by</option>
+                    <option value="price-low-high">Price: Low to High</option>
+                    <option value="price-high-low">Price: High to Low</option>
+                    <option value="newest">Newest</option>
+                    <option value="popular">Popular</option>
+                  </select>
+                  <button 
+                    className="border border-gray-300 rounded-lg px-4 py-2 hover:bg-gray-50 focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                    onClick={() => setIsFilterModalOpen(true)}
+                  >
+                    Filter
+                  </button>
+                </div>
+              </div>
+              
+              {!filteredProducts || !Array.isArray(filteredProducts) || filteredProducts.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">No products found in this category.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {filteredProducts.map(product => (
+                    <ProductCard key={product._id || product.id} product={product} onProductClick={onProductClick} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {currentView === 'detail' && selectedProduct && (
+            <ProductDetail 
+              product={selectedProduct} 
+              onBack={onBackToProducts}
+            />
+          )}
+        </div>
+      } />
+    </Routes>
   );
 };
 
@@ -1115,4 +1128,14 @@ const AppWithCart = () => {
   );
 };
 
-export default AppWithCart;
+// Wrap the entire app with BrowserRouter
+const AppWithRouter = () => {
+  return (
+    <BrowserRouter>
+      <OrderNotification />
+      <AppWithCart />
+    </BrowserRouter>
+  );
+};
+
+export default AppWithRouter;

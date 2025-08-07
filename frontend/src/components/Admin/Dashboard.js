@@ -30,6 +30,46 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
+    
+    // Listen for payment success events
+    const handlePaymentSuccess = (event) => {
+      console.log('Payment successful, refreshing dashboard...');
+      setTimeout(() => {
+        fetchDashboardData();
+      }, 1000); // Small delay to ensure backend has processed the order
+    };
+
+    window.addEventListener('payment-successful', handlePaymentSuccess);
+    
+    // Poll for new data every 30 seconds
+    const interval = setInterval(fetchDashboardData, 30000);
+
+    return () => {
+      window.removeEventListener('payment-successful', handlePaymentSuccess);
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Add event listeners for real-time updates
+  useEffect(() => {
+    const handleUserRegistered = (event) => {
+      console.log('User registered, updating dashboard:', event.detail);
+      fetchDashboardData(); // Refresh dashboard data
+    };
+
+    const handleUserLoggedIn = (event) => {
+      console.log('User logged in, updating dashboard:', event.detail);
+      fetchDashboardData(); // Refresh dashboard data
+    };
+
+    // Listen for user events
+    window.addEventListener('user-registered', handleUserRegistered);
+    window.addEventListener('user-logged-in', handleUserLoggedIn);
+    
+    return () => {
+      window.removeEventListener('user-registered', handleUserRegistered);
+      window.removeEventListener('user-logged-in', handleUserLoggedIn);
+    };
   }, []);
 
   const fetchDashboardData = async () => {

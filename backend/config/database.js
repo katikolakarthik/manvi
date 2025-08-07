@@ -15,6 +15,9 @@ const connectDB = async () => {
       // Additional options for MongoDB Atlas
       serverSelectionTimeoutMS: 10000, // Increased timeout
       socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
+      // Add retry logic
+      retryWrites: true,
+      w: 'majority',
     });
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
@@ -22,10 +25,24 @@ const connectDB = async () => {
     // Handle connection events
     mongoose.connection.on('error', (err) => {
       console.error('❌ MongoDB connection error:', err.message);
+      // Don't exit, just log the error
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.warn('⚠️ MongoDB disconnected');
+      console.warn('⚠️ MongoDB disconnected - attempting to reconnect...');
+      // Try to reconnect after a delay
+      setTimeout(() => {
+        mongoose.connect(mongoURI, {
+          useNewUrlParser: true,
+          useUnifiedTopology: true,
+          serverSelectionTimeoutMS: 10000,
+          socketTimeoutMS: 45000,
+          retryWrites: true,
+          w: 'majority',
+        }).catch(err => {
+          console.error('❌ Failed to reconnect to MongoDB:', err.message);
+        });
+      }, 5000);
     });
 
     mongoose.connection.on('reconnected', () => {

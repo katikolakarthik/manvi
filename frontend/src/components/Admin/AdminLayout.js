@@ -7,7 +7,8 @@ import {
   FaShoppingCart, 
   FaBars,
   FaTimes,
-  FaTags
+  FaTags,
+  FaCreditCard
 } from 'react-icons/fa';
 
 const AdminLayout = () => {
@@ -20,6 +21,7 @@ const AdminLayout = () => {
     { path: '/admin/subcategories', icon: FaTags, label: 'Subcategories' },
     { path: '/admin/users', icon: FaUsers, label: 'Users' },
     { path: '/admin/orders', icon: FaShoppingCart, label: 'Orders' },
+    { path: '/admin/payments', icon: FaCreditCard, label: 'Payments' },
   ];
 
 
